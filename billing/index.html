@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>FLUX · Facturación</title>
+<style>
+  /* Return page of Stripe Checkout / Customer Portal. Shows a message only: the real state is confirmed
+     by Stripe's webhook, and FLUX updates the plan by itself. */
+  :root { --bg:#F6F4FD; --card:#FFFFFF; --primary:#8B7CF6; --text:#28233D; --muted:#76708E; --border:#E6E1F5; --ok:#10B981; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14121F; --card:#211D32; --primary:#A99BFF; --text:#F2EFFC; --muted:#A39EBC; --border:#302B46; --ok:#34D399; } }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; padding:24px 16px; background:var(--bg); color:var(--text); font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  .card { width:min(440px,100%); background:var(--card); border:1px solid var(--border); border-radius:22px; padding:30px; box-shadow:0 30px 70px -36px rgba(139,124,246,.55); }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.14em; margin-bottom:22px; }
+  .mark { width:30px; height:30px; border-radius:10px; display:grid; place-items:center; background:var(--primary); color:#fff; }
+  h1 { font-size:21px; margin:0 0 8px; } p { margin:0 0 10px; color:var(--muted); }
+  .ok { color:var(--ok); }
+  svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="brand"><span class="mark"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>FLUX</div>
+  <div id="view"></div>
+</main>
+<script>
+  const s = new URLSearchParams(location.search).get('estado');
+  const [title, text] = s === 'ok'
+    ? ['Pago completado', 'Gracias. Vuelve a FLUX: tu plan se actualizará automáticamente en unos segundos, cuando Stripe confirme el pago.']
+    : s === 'cancelado'
+      ? ['Pago cancelado', 'No se ha realizado ningún cargo. Puedes volver a FLUX y elegir un plan cuando quieras.']
+      : ['Facturación de FLUX', 'Puedes cerrar esta página y volver a FLUX.'];
+  document.getElementById('view').innerHTML = '<h1></h1><p></p>';
+  document.querySelector('#view h1').textContent = title;
+  document.querySelector('#view p').textContent = text;
+  if (s === 'ok') document.querySelector('#view h1').className = 'ok';
+</script>
+</body>
+</html>
