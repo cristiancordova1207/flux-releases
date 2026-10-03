@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>FLUX · Cuenta</title>
+<style>
+  /* Landing page for Supabase e-mail links (confirmation / password recovery). Works on any device:
+     Supabase has already confirmed the e-mail before redirecting here. No external resources. */
+  :root { --bg:#080B12; --surface:#10151F; --card:#161D29; --primary:#38BDF8; --cyan:#67E8F9; --text:#F1F5F9; --muted:#94A3B8; --border:#263244; --ok:#34D399; --err:#F87171; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; padding:24px 16px; background:radial-gradient(1200px 600px at 50% -10%, #0E2233 0%, var(--bg) 60%); color:var(--text); font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  .card { width:min(420px,100%); background:var(--card); border:1px solid var(--border); border-radius:16px; padding:28px; box-shadow:0 30px 80px -30px rgba(56,189,248,.35); }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.14em; margin-bottom:22px; }
+  .mark { width:30px; height:30px; border-radius:9px; display:grid; place-items:center; background:var(--primary); color:#04121C; }
+  h1 { font-size:21px; margin:0 0 8px; letter-spacing:-.01em; }
+  p { margin:0 0 12px; color:var(--muted); }
+  .icon { width:46px; height:46px; border-radius:12px; display:grid; place-items:center; margin-bottom:16px; border:1px solid; }
+  .icon.ok { color:var(--ok); border-color:rgba(52,211,153,.35); background:rgba(52,211,153,.1); }
+  .icon.err { color:var(--err); border-color:rgba(248,113,113,.35); background:rgba(248,113,113,.1); }
+  .icon.info { color:var(--primary); border-color:rgba(56,189,248,.4); background:rgba(56,189,248,.1); }
+  label { display:block; font-size:13px; color:var(--muted); margin:14px 0 6px; }
+  input { width:100%; height:42px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--text); padding:0 12px; font:inherit; }
+  input:focus { outline:2px solid rgba(56,189,248,.5); border-color:var(--primary); }
+  button { width:100%; height:44px; margin-top:18px; border:0; border-radius:10px; background:var(--primary); color:#04121C; font:600 15px system-ui,sans-serif; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:default; }
+  .msg { margin-top:12px; font-size:14px; }
+  .msg.err { color:var(--err); } .msg.ok { color:var(--ok); }
+  .hint { font-size:13px; color:var(--muted); }
+  svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="brand"><span class="mark"><svg viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>FLUX</div>
+  <div id="view"><p>Comprobando el enlace…</p></div>
+</main>
+<script>
+(() => {
+  // Public client configuration (publishable key: designed for clients, data protected by RLS).
+  const SUPABASE_URL = 'https://dcepxcltgzipkmzpptzn.supabase.co';
+  const PUBLISHABLE_KEY = 'sb_publishable_JOw4DpVCnBt1GcY3QNdT4A_r1uSKXIB';
+  const view = document.getElementById('view');
+  const ICON = {
+    ok: '<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+    err: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>',
+    info: '<svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  };
+  const show = (kind, title, text) => { view.innerHTML = `<div class="icon ${kind}">${ICON[kind]}</div><h1></h1><p></p>`; view.querySelector('h1').textContent = title; view.querySelector('p').textContent = text; };
+
+  // Supabase sends the result in the URL fragment (or the query string for some errors).
+  const params = new URLSearchParams(location.hash.slice(1) || location.search.slice(1));
+  history.replaceState(null, '', location.pathname); // never leave tokens in the address bar or history
+
+  const error = params.get('error_description') || params.get('error');
+  if (error) {
+    const expired = /expired|invalid|otp/i.test(`${params.get('error_code')} ${error}`);
+    return show('err', expired ? 'El enlace ha caducado' : 'No se pudo completar', expired
+      ? 'Este enlace ya se utilizó o ha caducado. Si tu email ya estaba confirmado, inicia sesión en FLUX. Si no, pide un nuevo enlace desde FLUX.'
+      : 'Supabase no pudo completar la operación. Vuelve a intentarlo desde FLUX.');
+  }
+
+  const type = params.get('type'), token = params.get('access_token');
+  if (!token) return show('info', 'Enlace de FLUX', 'Abre esta página desde el enlace del email que te envió FLUX.');
+
+  if (type !== 'recovery') {
+    // signup / email_change / invite: Supabase already marked the email as confirmed before redirecting.
+    return show('ok', 'Email confirmado', 'Tu cuenta de FLUX está lista. Vuelve a FLUX en tu ordenador e inicia sesión con tu email y contraseña. Puedes cerrar esta página.');
+  }
+
+  // Password recovery: set the new password here, on whatever device opened the link.
+  view.innerHTML = `<div class="icon info">${ICON.info}</div><h1>Nueva contraseña</h1><p>Elige la nueva contraseña de tu cuenta de FLUX.</p>
+    <form novalidate><label for="p1">Nueva contraseña</label><input id="p1" type="password" autocomplete="new-password" required>
+    <label for="p2">Confirmar contraseña</label><input id="p2" type="password" autocomplete="new-password" required>
+    <p class="hint" style="margin-top:8px">Mínimo 8 caracteres, con letras y números.</p><button type="submit">Guardar contraseña</button><div class="msg" role="status"></div></form>`;
+  const form = view.querySelector('form'), msg = view.querySelector('.msg'), btn = view.querySelector('button');
+  const say = (k, t) => { msg.className = `msg ${k}`; msg.textContent = t; };
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const p1 = form.p1.value, p2 = form.p2.value;
+    if (p1 !== p2) return say('err', 'Las contraseñas no coinciden.');
+    if (p1.length < 8 || !/[a-zA-Z]/.test(p1) || !/\d/.test(p1)) return say('err', 'La contraseña es demasiado débil. Usa al menos 8 caracteres combinando letras y números.');
+    btn.disabled = true;
+    try {
+      const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, { method: 'PUT', headers: { apikey: PUBLISHABLE_KEY, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: p1 }) });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) return show('ok', 'Contraseña actualizada', 'Vuelve a FLUX e inicia sesión con tu nueva contraseña. Puedes cerrar esta página.');
+      const code = d.error_code || d.code;
+      say('err', r.status === 429 ? 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.'
+        : code === 'same_password' ? 'La nueva contraseña debe ser distinta de la anterior.'
+        : code === 'weak_password' ? 'La contraseña es demasiado débil.'
+        : r.status === 401 || r.status === 403 ? 'El enlace ha caducado. Pide uno nuevo desde FLUX.'
+        : 'No se pudo guardar la contraseña. Inténtalo de nuevo.');
+    } catch { say('err', 'No se pudo conectar. Comprueba tu conexión e inténtalo de nuevo.'); }
+    btn.disabled = false;
+  });
+})();
+</script>
+</body>
+</html>
